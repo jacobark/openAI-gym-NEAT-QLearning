@@ -7,9 +7,10 @@ import visualize
 from gym.wrappers import RecordVideo
 from functools import partial
 import random
+import imageio
 
 # Initialize the gym environment for MsPacman
-episode_trigger = lambda x: x % 100 == 0  # Record video every 10 episodes
+episode_trigger = lambda x: x % 1 == 0  # Record video every 1 episodes
 env = RecordVideo(gym.make('ALE/MsPacman-v5', render_mode='rgb_array'), 'video', episode_trigger=episode_trigger)
 
 
@@ -25,6 +26,7 @@ def eval_single_genome(genome, config):
         observation, _= env.reset()
         observation = cv2.cvtColor(observation, cv2.COLOR_BGR2GRAY)
         observation = observation.flatten()
+        observation = observation/255
         temp = net.activate(observation)
         action  = np.argmax(temp)
         if action == 0:
@@ -36,6 +38,7 @@ def eval_single_genome(genome, config):
             observation, reward, done, truncated, info = env.step(action)
             observation = cv2.cvtColor(observation, cv2.COLOR_BGR2GRAY)
             observation = observation.flatten()
+            observation = observation / 255
             temp = net.activate(observation)
             action = np.argmax(temp)
             if action == 0:
@@ -88,11 +91,11 @@ population.add_reporter(stats)
 # Train the agents using the NEAT algorithm
 stats = neat.StatisticsReporter()
 # Parallel training
-best_genome = population.run(partial(_eval_genomes, eval_single_genome), 200)
+best_genome = population.run(partial(_eval_genomes, eval_single_genome), 100)
 #visualize.draw_net(config, best_genome, filename='net')
 # Not parallel training
 # best_genome = population.run(evaluate_agent, 100)
-#visualize.plot_stats(stats, ylog=False, view=False, filename="fitness.svg")
+visualize.plot_stats(stats, ylog=False, view=False, filename="fitness.svg")
 #visualize.plot_species(stats, view=False, filename="species.svg")
 
 # Evaluate the best agent
@@ -101,12 +104,16 @@ observation, _ = env.reset()
 observation = cv2.cvtColor(observation, cv2.COLOR_BGR2GRAY)
 observation = observation.flatten()
 
+images = []
+img = env.render()
 done = False
 while not done:
+    images.append(img)
     action = np.argmax(best_net.activate(observation))
     observation, reward, done, truncated, info = env.step(action)
     # env.render()
+    img = env.render()
+imageio.mimsave("MsPacman_NEAT.gif", [np.array(img) for i, img in enumerate(images) if i%2 == 0], duration=35)
 
 # Close the environment
 env.close()
-
